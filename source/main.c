@@ -56,6 +56,10 @@ static inline void loadForegroundMap()
 CpuFastSet(LegendOfLinkFG_tilemap, MAP_BASE_ADR(bg0_base), LegendOfLinkFG_len); //Upper-left quadrant
 }
 
+// Load sprite palette
+static inline void loadSpritePalette(const u16 *palette){
+dmaCopy(palette, SPRITE_PALETTE, 256); //number_of_16_bit_words = 256
+
 inline void setVideoSettings()
 {
 	//Set video settings (find in cowbite or gba_video.h)
@@ -110,10 +114,16 @@ int main(void) {
 	loadBGTileSet(gbaBGTiles_tiles);
 	VBlankIntrWait();
 
+	// Load sprite palette
+	loadSpritePalette();
+	VBlankIntrWait();
+
 	//Load background and foreground maps
 	loadGroundTileMap();
 	// Load foreground/collidable tile map
 	loadForegroundMap();
+
+	
 
 	while (1) 
 	{

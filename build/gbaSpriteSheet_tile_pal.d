@@ -1,0 +1,6 @@
+gbaSpriteSheet_tile_pal.o: \
+ E:/githubs/GBA/Legend-Of-Link-GBA/source/gbaSpriteSheet_tile_pal.c \
+ E:/devkitPro/libgba/include/gba_types.h \
+ E:/githubs/GBA/Legend-Of-Link-GBA/source/gbaSpriteSheet_tile_pal.h
+E:/devkitPro/libgba/include/gba_types.h:
+E:/githubs/GBA/Legend-Of-Link-GBA/source/gbaSpriteSheet_tile_pal.h:

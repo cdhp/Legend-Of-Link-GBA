@@ -10,6 +10,7 @@
 #include <stdlib.h>
 // Include user files here
 #include "gbaBGTiles_tile_pal.h"
+#include "gbaSpriteSheet_tile_pal.h"
 // End user file includes
 
 
@@ -26,6 +27,9 @@
 	extern const unsigned char LegendOfLinkFG_tilemap[];
 	extern const unsigned int LegendOfLinkFG_len;
 
+	extern const u16 gbaSpriteSheet_pal[];
+	extern const u8 gbaSpriteSheet_tiles[];
+
 // End extern here
 
 
@@ -36,29 +40,62 @@ const int bg1_base = 16;
 
 //End Variable here
 
+// Set settings for backgrounds 1 and 0
+inline void setBGSettings()
+{ 
+	//Share the same tile set
+	//Change priorities so bg 1 is in front of bg 0
+	REG_BG0CNT = 
+	BG_256_COLOR 			|	//Use 256-color palette
+	BG_TILE_BASE(0) 		|	//Set the starting address for each tilemap
+	TEXTBG_SIZE_512x512 	|	//Set bg to 512x512 pixels
+	BG_PRIORITY(1) 			|
+	BG_MAP_BASE(bg0_base);
+
+	REG_BG1CNT = 
+	BG_256_COLOR 			|	//Use 256-color palette
+	BG_TILE_BASE(0) 		|	//Set the starting address for each tilemap
+	TEXTBG_SIZE_512x512 	|	//Set bg to 512x512 pixels
+	BG_PRIORITY(0) 			|	
+	BG_MAP_BASE(bg1_base);		
+	
+	return;
+}
+
 // Load 256-color palette for bg
-static inline void loadBGPalette(const u16 *palette){
+static inline void loadBGPalette(const u16 *palette)
+{
 dmaCopy(palette, BG_PALETTE, 256); //number_of_16_bit_words = 256
 }
 // Load set of tiles for bg
-static inline void loadBGTileSet(const u8 *tileset){
+static inline void loadBGTileSet(const u8 *tileset)
+{
 dmaCopy(tileset, TILE_BASE_ADR(0), 16384);
 }
 
 // Load background tile map
 static inline void loadGroundTileMap()
 {
-CpuFastSet(LegendOfLinkBG_tilemap, MAP_BASE_ADR(bg1_base), LegendOfLinkBG_len);
+CpuFastSet(LegendOfLinkBG_tilemap, MAP_BASE_ADR(bg0_base), LegendOfLinkBG_len);
 }
+
 // Load foreground/collidable tile map
 static inline void loadForegroundMap()
 {
-CpuFastSet(LegendOfLinkFG_tilemap, MAP_BASE_ADR(bg0_base), LegendOfLinkFG_len); //Upper-left quadrant
+CpuFastSet(LegendOfLinkFG_tilemap, MAP_BASE_ADR(bg1_base), LegendOfLinkFG_len); //Upper-left quadrant
 }
 
 // Load sprite palette
-static inline void loadSpritePalette(const u16 *palette){
-dmaCopy(palette, SPRITE_PALETTE, 256); //number_of_16_bit_words = 256
+static inline void loadSpritePalette(const u16 *palette)
+{
+	dmaCopy(palette, SPRITE_PALETTE, 256); //number_of_16_bit_words = 256
+}
+
+// Load sprite tiles
+static inline void loadSpriteTileSet(const u8 *tileset)
+{
+dmaCopy(tileset, SPRITE_GFX, 16384);
+}
 
 inline void setVideoSettings()
 {
@@ -72,25 +109,11 @@ inline void setVideoSettings()
 	return;
 }
 
-
-// Set settings for backgrounds 1 and 0
-inline void setBGSettings()
-{ 
-	//Share the same tile set
-	//Change priorities so bg 1 is in front of bg 0
-	REG_BG0CNT = BG_256_COLOR | BG_TILE_BASE(0) | TEXTBG_SIZE_512x512 |
-	BG_PRIORITY(0) | BG_MAP_BASE(bg0_base);
-	REG_BG1CNT = BG_256_COLOR | BG_TILE_BASE(0) | TEXTBG_SIZE_512x512 |
-	BG_PRIORITY(1) | BG_MAP_BASE(bg1_base);
-	//Use 256-color palette //Set bg to 512x512 pixels 
-	//Set the starting address for each tilemap
-	return;
-}
-
 //---------------------------------------------------------------------------------
 // Program entry point
 //---------------------------------------------------------------------------------
-int main(void) {
+int main(void) 
+{
 //---------------------------------------------------------------------------------
 
 
@@ -115,13 +138,19 @@ int main(void) {
 	VBlankIntrWait();
 
 	// Load sprite palette
-	loadSpritePalette();
+	loadSpritePalette(gbaSpriteSheet_pal);
+	VBlankIntrWait();
+
+	// Load sprite palette
+	loadSpriteTileSet(gbaSpriteSheet_tiles);
 	VBlankIntrWait();
 
 	//Load background and foreground maps
 	loadGroundTileMap();
+	VBlankIntrWait();
 	// Load foreground/collidable tile map
 	loadForegroundMap();
+	VBlankIntrWait();
 
 	
 

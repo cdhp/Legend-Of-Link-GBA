@@ -44,15 +44,27 @@ typedef struct
 	u16 frameTimer;
 } Boomerang;
 
+// Rupee
+typedef struct
+{
+    bool active;
+    s16 x, y;        	// current position
+    u16 sprnum;      	// sprite index
+    u16 frame;
+	u16 frameTimer;
+} Rupee;
+
 //Set Variables here
 
 const int bg0_base = 8;
 const int bg1_base = 16;
 
 Boomerang booms[10];
+Rupee rupees[20];
 bool prevB; 			// B-pressed value from the previous frame
 int scrollPosX;
 int scrollPosY;
+u16 rupeesCollected;
 
 //End Variable here
 
@@ -63,6 +75,7 @@ void initVars()
 	prevB = false;
 	scrollPosX = 0;
 	scrollPosY = 0;
+	rupeesCollected = 0;
 }
 
 // end init variables
@@ -144,14 +157,27 @@ static inline void loadBGTileSet(const u8 *tileset)
 // Load background tile map
 static inline void loadGroundTileMap()
 {
-	CpuFastSet(LegendOfLinkBG_tilemap, MAP_BASE_ADR(bg0_base), LegendOfLinkBG_len);
+	const u16* src = (const u16*)LegendOfLinkBG_tilemap;
+    u16* dest = (u16*)MAP_BASE_ADR(bg0_base);
+
+	CpuFastSet(src			, dest					, (1024/2) | COPY16); //Upper-left quadrant
+	CpuFastSet(src + 1024	, dest + 2 * 32 * 32	, (1024/2) | COPY16); //Upper-right quadrant
+	CpuFastSet(src + 2048	, dest + 32 * 32		, (1024/2) | COPY16); //bottom-left quadrant
+	CpuFastSet(src + 3072	, dest + 3 * 32 * 32	, (1024/2) | COPY16); //bottom-right quadrant
 }
 
 // Load foreground/collidable tile map
 static inline void loadForegroundMap()
 {
-	CpuFastSet(LegendOfLinkFG_tilemap, MAP_BASE_ADR(bg1_base), LegendOfLinkFG_len); //Upper-left quadrant
+	const u16* src = (const u16*)LegendOfLinkFG_tilemap;
+    u16* dest = (u16*)MAP_BASE_ADR(bg1_base);
+
+	CpuFastSet(src			, dest					, (1024/2) | COPY16); //Upper-left quadrant
+	CpuFastSet(src + 1024	, dest + 2* 32 * 32		, (1024/2) | COPY16); //Upper-right quadrant
+	CpuFastSet(src + 2048	, dest + 32 * 32		, (1024/2) | COPY16); //bottom-left quadrant
+	CpuFastSet(src + 3072	, dest + 3 * 32 * 32	, (1024/2) | COPY16); //bottom-right quadrant
 }
+
 
 // Load sprite palette
 static inline void loadSpritePalette(const u16 *palette)
@@ -207,6 +233,27 @@ void setupBoomerangSprites()
     {
         booms[i].active = false;
         booms[i].sprnum = i + 1;  // sprite slot 1–10 (Link uses 0)
+    }
+}
+
+void setupRupeeSprites()
+{
+	// max of 10  boomerangs
+    for(int i = 1; i <= 20; i++)
+    {
+        SPRT[i].ColorMode = 1;
+        SPRT[i].Priority = 1;
+        SPRT[i].Shape = SQUARE;
+        SPRT[i].Size = Sprite_16x16;
+        SPRT[i].Character = 149<<1;   
+        SPRT[i].X = 240;  // hide offscreen
+        SPRT[i].Y = 160;
+    }
+
+    for(int i = 0; i < 20; i++)
+    {
+        booms[i].active = false;
+        booms[i].sprnum = i + 1;  // sprite slot 11–30 (0-10 used)
     }
 }
 
@@ -358,8 +405,8 @@ void executeMovement()
 	link.y += up;
 
 	// update sprite in OAM
-    SPRT[0].X = link.x;
-    SPRT[0].Y = link.y;
+    SPRT[0].X = link.x - scrollPosX;
+    SPRT[0].Y = link.y - scrollPosY;
 }
 
 // end movement
@@ -431,8 +478,8 @@ void updateBoomerangs()
 		// check active
         if(!b->active)
         {
-			b->x = 240;
-			b->y = 160;
+			b->x = -15;
+			b->y = -15;
         }
 
 		// move
@@ -440,8 +487,8 @@ void updateBoomerangs()
 		b->y += b->vy;
 
 		// update OAM sprite
-        SPRT[s].X = b->x;
-        SPRT[s].Y = b->y;
+        SPRT[s].X = b->x - scrollPosX;
+        SPRT[s].Y = b->y - scrollPosY;
 
     }
 }
@@ -506,6 +553,16 @@ void animateBoomerangs()
 
 //end Boomerangs
 
+// Rupees
+
+void collideRupee(int i)
+{
+	SPRT[i].active = false;
+}
+
+
+//
+
 void processInputs()
 {
 	executeMovement();
@@ -524,11 +581,11 @@ void processCollisions()
 {
 
 
-	u16 w = 16;
-	u16 h = 16;
+	u16 w = 12;
+	u16 h = 12;
 
-	u16 x = link.x;
-	u16 y = link.y;
+	u16 x = link.x + 2;
+	u16 y = link.y + 2;
 
 	u16 tlX = x; 		// top-left X
 	u16 tlY = y; 		// top-left Y
@@ -628,46 +685,61 @@ void processCollisions()
 
 void scrollUp()
 {
-	scrollPosY -= 160;
-	setLinkY(link.y + 160);
+	scrollPosY -= SCREEN_HEIGHT;
 }
 
 void scrollRight()
 {
-	scrollPosX += 240;
-	setLinkX(link.x - 240);
+	scrollPosX += SCREEN_WIDTH;
 }
 
 void scrollDown()
 {
-	scrollPosY += 160;
-	setLinkY(link.y - 160);
+	scrollPosY += SCREEN_HEIGHT;
 }
 
 void scrollLeft()
 {
-	scrollPosX -= 240;
-	setLinkX(link.x + 240);
+	scrollPosX -= SCREEN_WIDTH;
 }
 
 void processScroll()
 {
-	if ((link.x + 8) > 240 && scrollPosX < 480)
+
+	u16 vertBound =  SCREEN_WIDTH;
+	u16 horzBound = SCREEN_HEIGHT;
+
+    int relX = link.x - scrollPosX;
+	int relY = link.y - scrollPosY;
+
+	if (relX > vertBound)
 	{
 		scrollRight();
 	}
-	else if ((link.x + 8) < 0 && scrollPosX < 480)
+	else if (relX < 0)
 	{
 		scrollLeft();
 	}
-	else if ((link.y + 8) < 0 && scrollPosY < 480)
+	else if (relY < 0)
 	{
 		scrollUp();
 	}
-	else if ((link.y + 8) > 160 && scrollPosY < 480)
+	else if (relY > horzBound)
 	{
 		scrollDown();
 	}
+}
+
+void updateView()
+{
+	REG_BG0HOFS = scrollPosX;	//BG 0 horizontal offset (volatile unsigned 16-bit integer)
+	REG_BG0VOFS = scrollPosY;	//BG 0 vertical offset
+
+	REG_BG1HOFS = scrollPosX;	//BG 1 horizontal offset
+	REG_BG1VOFS = scrollPosY;	//BG 1 vertical offset
+	
+	// SCREEN_HEIGHT // macro for 160
+	// SCREEN_WIDTH // macro for 240
 }
 
 // end Scroll
@@ -727,6 +799,7 @@ int main(void)
 		processInputs();
 		processCollisions();
 		processScroll();
+		updateView();
 		animateLink();
 	}
 
